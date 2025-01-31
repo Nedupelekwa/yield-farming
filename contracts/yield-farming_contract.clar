@@ -22,3 +22,41 @@
             { amount: amount, start-block: block-height })
           (var-set total-staked (+ (var-get total-staked) amount))
           (ok "Stake added"))))))
+
+          (define-public (unstake)
+  (let ((existing (map-get? stakes { account: tx-sender })))
+    (if existing
+      (let ((rewards (calculate-rewards tx-sender)))
+        (if (>= (- block-height (get start-block existing)) (var-get lock-period))
+          (begin
+            (map-delete stakes { account: tx-sender })
+            (var-set total-staked (- (var-get total-staked) (get amount existing)))
+            (ok { amount: (get amount existing), rewards: rewards }))
+          (err "Stake is locked. Wait for lock period to end")))
+      (err "No stake found"))))
+
+(define-read-only (calculate-rewards (user principal))
+  (let ((existing (map-get? stakes { account: user })))
+    (if existing
+      (min (* REWARD_RATE (- block-height (get start-block existing))) (var-get reward-pool))
+      u0)))
+
+(define-public (withdraw-rewards)
+  (let ((rewards (calculate-rewards tx-sender)))
+    (if (> rewards u0)
+      (begin
+        (var-set reward-pool (- (var-get reward-pool) rewards))
+        (ok { recipient: tx-sender, amount: rewards }))
+      (err "No rewards available"))))
+
+(define-public (set-reward-rate (new-rate uint))
+  (begin
+    (asserts! (is-eq tx-sender ADMIN) (err "Only admin can update reward rate"))
+    (define-constant REWARD_RATE new-rate)
+    (ok "Reward rate updated"))))
+
+(define-public (set-min-stake (new-min uint))
+  (begin
+    (asserts! (is-eq tx-sender ADMIN) (err "Only admin can update min stake"))
+    (var-set min-stake new-min)
+    (ok "Minimum stake updated"))))
