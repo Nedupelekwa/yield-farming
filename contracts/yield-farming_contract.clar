@@ -60,3 +60,10 @@
     (asserts! (is-eq tx-sender ADMIN) (err "Only admin can update min stake"))
     (var-set min-stake new-min)
     (ok "Minimum stake updated"))))
+
+
+(define-public (set-lock-period (new-lock uint))
+  (begin
+    (asserts! (is-eq tx-sender ADMIN) (err "Only admin can update lock period"))
+    (var-set lock-period new-lock)
+    (ok "Lock period updated"))))
